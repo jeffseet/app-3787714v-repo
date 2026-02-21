@@ -1,88 +1,112 @@
 pipeline {
-   agent any
+    agent any
 
-   stages {
+    stages {
 
-       stage('stg1_3787714v') {
-           steps {
-               echo "stg1_3787714v: Preparation check passes"
-           }
-       }
+        // -------------------------
+        stage('stg1_3787714v') {
+            steps {
+                echo "stg1_3787714v: Preparation check passes"
+            }
+        }
 
-       stage('stg2_3787714v') {
-           steps {
-               script {
-                   sh 'curl -Is http://localhost:33100 | head -n 1 > /tmp/testsvr-result-file'
-                   sh 'cat /tmp/testsvr-result-file'
+        // -------------------------
+        stage('stg2_3787714v') {
+            steps {
+                script {
+                    // Check testsvr website
+                    sh 'curl -Is http://localhost:33100 | head -n 1 > /tmp/testsvr-result-file'
+                    sh 'cat /tmp/testsvr-result-file'
 
-                   def result = sh(script: "cat /tmp/testsvr-result-file", returnStdout: true).trim()
+                    def result = sh(script: "cat /tmp/testsvr-result-file", returnStdout: true).trim()
 
-                   if (result.contains("200")) {
-                       echo "stg2_3787714v: testsvr’s website is running"
-                   } else {
-                       error "stg2_3787714v: testsvr’s website is down"
-                   }
-               }
-               input message: "Proceed to update testsvr server?"
-           }
-       }
+                    if (result.contains("200")) {
+                        echo "stg2_3787714v: testsvr’s website is running"
+                    } else {
+                        error "stg2_3787714v: testsvr’s website is down"
+                    }
+                }
+                input message: "Proceed to update testsvr server?"
+            }
+        }
 
-       stage('stg3_3787714v') {
-           steps {
-               sh 'docker rmi testsvr_image || true'
-               sh 'docker commit testsvr_3787714v testsvr_image'
-               sh 'bolt script run opr_script_3787714v --targets testsvr_3787714v'
-               echo "stg3_3787714v: testsvr is backup and updated"
-           }
-       }
+        // -------------------------
+        stage('stg3_3787714v') {
+            steps {
+                script {
+                    echo "stg3_3787714v: Preparing testsvr backup and update"
 
-       stage('stg4_3787714v') {
-           steps {
-               script {
-                   sh 'curl -Is http://localhost:33100 | head -n 1 > /tmp/testsvr-result-file'
-                   sh 'cat /tmp/testsvr-result-file'
+                    // Remove old image if exists
+                    sh 'docker rmi testsvr_image || true'
 
-                   def result = sh(script: "cat /tmp/testsvr-result-file", returnStdout: true).trim()
+                    // Commit current container to image
+                    sh 'docker commit testsvr_3787714v testsvr_image'
 
-                   if (!result.contains("200")) {
-                       error "stg4_3787714v: testsvr’s website is down"
-                   }
-               }
-               input message: "Proceed to update appsvr server?"
-           }
-       }
+                    // Use static container IP for Bolt (matches Requirement 1)
+                    def containerIP = '192.168.150.210'
+                    sh "bolt script run opr_script_3787714v --targets ${containerIP}"
 
-       stage('stg5_3787714v') {
-           steps {
-               sh 'docker rmi appsvr_image || true'
-               sh 'docker commit appsvr_3787714v appsvr_image'
-               sh 'bolt script run opr_script_3787714v --targets appsvr_3787714v'
-               echo "stg5_3787714v: appsvr web server is backup and updated"
-           }
-       }
+                    echo "stg3_3787714v: testsvr is backed up and updated"
+                }
+            }
+        }
 
-       stage('stg6_3787714v') {
-           steps {
-               script {
-                   sh 'curl -Is http://localhost:33200 | head -n 1 > /tmp/appsvr-result-file'
-                   sh 'cat /tmp/appsvr-result-file'
+        // -------------------------
+        stage('stg4_3787714v') {
+            steps {
+                script {
+                    // Re-check testsvr after update
+                    sh 'curl -Is http://localhost:33100 | head -n 1 > /tmp/testsvr-result-file'
+                    sh 'cat /tmp/testsvr-result-file'
 
-                   def result = sh(script: "cat /tmp/appsvr-result-file", returnStdout: true).trim()
+                    def result = sh(script: "cat /tmp/testsvr-result-file", returnStdout: true).trim()
 
-                   if (result.contains("200")) {
-                       echo "stg6_3787714v: appsvr website is operational"
-                   } else {
-                       def choice = input(
-                           message: "Production site failed. Choose action:",
-                           parameters: [
-                               choice(name: 'ACTION',
-                               choices: ['Trigger roll back', 'Troubleshooting'])
-                           ]
-                       )
-                       echo "User selected: ${choice}"
-                   }
-               }
-           }
-       }
-   }
+                    if (!result.contains("200")) {
+                        error "stg4_3787714v: testsvr’s website is down"
+                    }
+                }
+                input message: "Proceed to update appsvr server?"
+            }
+        }
+
+        // -------------------------
+        stage('stg5_3787714v') {
+            steps {
+                script {
+                    // Backup and update appsvr container
+                    sh 'docker rmi appsvr_image || true'
+                    sh 'docker commit appsvr_3787714v appsvr_image'
+                    sh 'bolt script run opr_script_3787714v --targets appsvr_3787714v'
+
+                    echo "stg5_3787714v: appsvr web server is backed up and updated"
+                }
+            }
+        }
+
+        // -------------------------
+        stage('stg6_3787714v') {
+            steps {
+                script {
+                    // Check production appsvr website
+                    sh 'curl -Is http://localhost:33200 | head -n 1 > /tmp/appsvr-result-file'
+                    sh 'cat /tmp/appsvr-result-file'
+
+                    def result = sh(script: "cat /tmp/appsvr-result-file", returnStdout: true).trim()
+
+                    if (result.contains("200")) {
+                        echo "stg6_3787714v: appsvr website is operational"
+                    } else {
+                        def choice = input(
+                            message: "Production site failed. Choose action:",
+                            parameters: [
+                                choice(name: 'ACTION',
+                                       choices: ['Trigger roll back', 'Troubleshooting'])
+                            ]
+                        )
+                        echo "User selected: ${choice}"
+                    }
+                }
+            }
+        }
+    }
 }
