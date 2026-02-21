@@ -26,11 +26,12 @@ pipeline {
                     ).trim()
 
                     if (result.contains("200")) {
-                        echo "stg2_3787714v: testsvr’s website is running"
 
+                        echo "stg2_3787714v: testsvr’s website is running"
                         input message: "Proceed to update testsvr server?"
 
                     } else {
+
                         echo "stg2_3787714v: testsvr’s website is down"
                         error("Aborting pipeline because testsvr is down.")
                     }
@@ -50,10 +51,9 @@ pipeline {
 
                     sh '''
                     bolt script run opr_script_3787714v \
-                    --targets 192.168.150.210 \
+                    -t testsvr_3787714v.localdomain \
                     -u clientadm -p user123 \
-                    --no-host-key-check \
-                    --run-as root
+                    --no-host-key-check --run-as root
                     '''
 
                     echo "stg3_3787714v: testsvr is backup and updated"
@@ -77,11 +77,12 @@ pipeline {
                     ).trim()
 
                     if (result.contains("200")) {
-                        echo "stg4_3787714v: testsvr’s website is running"
 
+                        echo "stg4_3787714v: testsvr’s website is running"
                         input message: "Proceed to update appsvr server?"
 
                     } else {
+
                         echo "stg4_3787714v: testsvr’s website is down"
                         error("Aborting pipeline because testsvr failed after update.")
                     }
@@ -94,15 +95,16 @@ pipeline {
             steps {
                 script {
 
+                    echo "stg5_3787714v: Preparing appsvr backup and update"
+
                     sh 'docker rmi -f appsvr_image || true'
                     sh 'docker commit appsvr_3787714v appsvr_image'
 
                     sh '''
                     bolt script run opr_script_3787714v \
-                    --targets 192.168.150.220 \
+                    -t appsvr_3787714v.localdomain \
                     -u clientadm -p user123 \
-                    --no-host-key-check \
-                    --run-as root
+                    --no-host-key-check --run-as root
                     '''
 
                     echo "stg5_3787714v: appsvr web server is backup and updated"
