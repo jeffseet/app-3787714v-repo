@@ -17,10 +17,19 @@ service { 'apache2':
 echo "=== Cleaning up working directory ==="
 
 puppet apply -e "
-file { '/tmp/work/3787714v':
+file { '/tmp/work':
   ensure  => absent,
   recurse => true,
   force   => true,
+}
+"
+
+puppet apply -e "
+file { '/tmp/work':
+  ensure => directory,
+  owner  => 'root',
+  group  => 'root',
+  mode   => '0755',
 }
 "
 
