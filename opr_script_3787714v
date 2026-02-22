@@ -1,20 +1,27 @@
 #!/bin/bash
 
+# Exit immediately if any command fails
+set -e
+
+echo "==============================================="
 echo "=== Ensuring Apache2 is installed and running ==="
+echo "==============================================="
 
 puppet apply -e "
-package { 'apache2':
+package { ['apache2','git','curl']:
   ensure => installed,
 }
 
 service { 'apache2':
-  ensure => running,
-  enable => true,
+  ensure  => running,
+  enable  => true,
   require => Package['apache2'],
 }
 "
 
+echo "==============================================="
 echo "=== Cleaning up working directory ==="
+echo "==============================================="
 
 puppet apply -e "
 file { '/tmp/work':
@@ -25,7 +32,7 @@ file { '/tmp/work':
 "
 
 puppet apply -e "
-file { '/tmp/work':
+file { ['/tmp/work','/tmp/work/3787714v']:
   ensure => directory,
   owner  => 'root',
   group  => 'root',
@@ -33,22 +40,29 @@ file { '/tmp/work':
 }
 "
 
-puppet apply -e "
-file { '/tmp/work/3787714v':
-  ensure => directory,
-  owner  => 'root',
-  group  => 'root',
-  mode   => '0755',
-}
-"
-
+echo "==============================================="
 echo "=== Cloning Git repository into container ==="
+echo "==============================================="
 
-cd /tmp/work/3787714v || exit 1
+cd /tmp/work/3787714v
+
+# Remove existing repo if exists (safe re-run)
+rm -rf app-3787714v-repo
 
 git clone https://github.com/jeffseet/app-3787714v-repo.git
 
+echo "==============================================="
+echo "=== Validating HTML file exists ==="
+echo "==============================================="
+
+if [ ! -f "/tmp/work/3787714v/app-3787714v-repo/new_3787714v_index.html" ]; then
+  echo "ERROR: new_3787714v_index.html not found!"
+  exit 1
+fi
+
+echo "==============================================="
 echo "=== Updating index.html ==="
+echo "==============================================="
 
 puppet apply -e "
 file { '/var/www/html/index.html':
@@ -60,4 +74,6 @@ file { '/var/www/html/index.html':
 }
 "
 
-echo "=== Bolt script execution completed successfully ==="
+echo "==============================================="
+echo "=== Deployment Completed Successfully ==="
+echo "==============================================="
