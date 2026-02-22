@@ -51,9 +51,9 @@ pipeline {
 
                     sh '''
                     bolt script run opr_script_3787714v \
-                    -t testsvr_3787714v.localdomain \
-                    -u clientadm -p user123 \
-                    --no-host-key-check --run-as root
+                    --targets 192.168.150.210 \
+                    -u root -p user123 \
+                    --no-host-key-check \
                     '''
 
                     echo "stg3_3787714v: testsvr is backup and updated"
@@ -102,9 +102,10 @@ pipeline {
 
                     sh '''
                     bolt script run opr_script_3787714v \
-                    -t appsvr_3787714v.localdomain \
-                    -u clientadm -p user123 \
-                    --no-host-key-check --run-as root
+                    --targets 192.168.150.220 \
+                    -u root -p user123 \
+                    --no-host-key-check \
+                    --run-as root
                     '''
 
                     echo "stg5_3787714v: appsvr web server is backup and updated"
